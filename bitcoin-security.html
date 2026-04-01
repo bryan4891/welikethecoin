@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Security Simulator — We Like The Coin</title>
+    <meta name="description" content="An interactive phishing simulation to teach you how Bitcoin seed phrase attacks work — and how to protect yourself.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-X9HB0Y5K99"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-X9HB0Y5K99');
+    </script>
+
+    <style>
+        :root {
+            --bitcoin-orange: #F7931A;
+            --dark-bg: #1a1a1a;
+            --darker-bg: #0f0f0f;
+            --light-text: #f5f5f5;
+            --gray-text: #a0a0a0;
+            --accent-gradient: linear-gradient(135deg, #F7931A 0%, #ff6b35 100%);
+            --red: #ef4444;
+            --red-bg: rgba(239,68,68,0.08);
+            --red-border: rgba(239,68,68,0.3);
+            --green: #22c55e;
+            --green-bg: rgba(34,197,94,0.08);
+            --green-border: rgba(34,197,94,0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Work Sans', sans-serif;
+            background: var(--darker-bg);
+            color: var(--light-text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ── Nav (matches index) ── */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(15,15,15,0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid rgba(247,147,26,0.2);
+        }
+        .nav-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 1.5rem;
+            color: var(--bitcoin-orange);
+            text-decoration: none;
+        }
+        .nav-links { display: flex; gap: 2rem; list-style: none; }
+        .nav-links a {
+            color: var(--light-text);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+            position: relative;
+        }
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px; left: 0;
+            width: 0; height: 2px;
+            background: var(--bitcoin-orange);
+            transition: width 0.3s;
+        }
+        .nav-links a:hover::after { width: 100%; }
+        .nav-links a.active { color: var(--bitcoin-orange); }
+
+        /* ── Page hero ── */
+        .page-hero {
+            padding: 8rem 2rem 4rem;
+            text-align: center;
+            background: radial-gradient(ellipse at top, rgba(247,147,26,0.1) 0%, transparent 60%);
+            position: relative;
+            overflow: hidden;
+        }
+        .page-hero::before {
+            content: '🛡️';
+            position: absolute;
+            font-size: 40vw;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.03;
+            z-index: 0;
+        }
+        .page-hero-content { position: relative; z-index: 1; max-width: 700px; margin: 0 auto; }
+        .page-hero h1 {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: clamp(2.5rem, 7vw, 5rem);
+            line-height: 1;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+            margin-bottom: 1rem;
+            animation: fadeInUp 0.8s ease-out both;
+        }
+        .page-hero p {
+            color: var(--gray-text);
+            font-size: 1.1rem;
+            font-weight: 300;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+        .warning-pill {
+            display: inline-block;
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.4);
+            color: #fca5a5;
+            border-radius: 25px;
+            padding: 0.4rem 1.2rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.8s ease-out 0.1s both;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Sim container ── */
+        .sim-wrap {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 2rem 2rem 6rem;
+        }
+
+        /* ── Shared screen ── */
+        .screen { display: none; }
+        .screen.active { display: block; animation: fadeInUp 0.4s ease-out both; }
+
+        /* ── Fake Trezor card ── */
+        .phish-card {
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            color: #111;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .phish-header {
+            background: #1a1a2e;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .phish-logo-mark {
+            width: 30px; height: 30px;
+            background: #00b388;
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 900; color: #fff;
+        }
+        .phish-brand { color: #fff; font-weight: 700; font-size: 15px; }
+        .phish-domain { color: #6b7280; font-size: 11px; margin-left: auto; font-family: monospace; }
+        .phish-body { padding: 2rem; }
+        .phish-alert {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 13px;
+            color: #991b1b;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .phish-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #111;
+            margin-bottom: 0.5rem;
+            font-family: 'Archivo Black', sans-serif;
+        }
+        .phish-sub {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+        .phish-btn {
+            width: 100%;
+            padding: 14px;
+            background: #1a1a2e;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .phish-btn:hover { background: #2d2d50; }
+        .phish-footer { font-size: 11px; color: #9ca3af; text-align: center; margin-top: 0.75rem; }
+
+        /* word choice */
+        .word-choice { display: flex; gap: 12px; margin: 1.5rem 0; }
+        .word-btn {
+            flex: 1;
+            padding: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            background: #f9fafb;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 700;
+            color: #111;
+            transition: all 0.2s;
+        }
+        .word-btn:hover { border-color: #1a1a2e; background: #f3f4f6; }
+
+        /* seed grid */
+        .seed-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 1rem 0;
+        }
+        .seed-input-wrap { position: relative; }
+        .seed-num {
+            position: absolute;
+            left: 8px; top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            color: #9ca3af;
+            pointer-events: none;
+        }
+        .seed-input {
+            width: 100%;
+            padding: 9px 8px 9px 24px;
+            border: 1px solid #e5e7eb;
+            border-radius: 7px;
+            background: #fff;
+            font-size: 13px;
+            color: #111;
+            transition: border 0.2s;
+        }
+        .seed-input:focus { outline: none; border-color: #1a1a2e; }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 1rem;
+            color: #9ca3af;
+            font-size: 13px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-family: inherit;
+        }
+        .back-link:hover { color: #6b7280; }
+
+        /* ── STOP screen ── */
+        .stop-banner {
+            background: var(--red-bg);
+            border: 1px solid var(--red-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .stop-banner h2 {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 1.8rem;
+            color: #f87171;
+            text-transform: uppercase;
+            letter-spacing: -0.01em;
+            margin-bottom: 0.5rem;
+        }
+        .stop-banner p { font-size: 14px; color: #fca5a5; line-height: 1.6; }
+
+        .reveal-box {
+            background: rgba(247,147,26,0.06);
+            border: 1px solid rgba(247,147,26,0.25);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+            font-size: 14px;
+            color: var(--gray-text);
+            line-height: 1.65;
+        }
+        .reveal-box strong { color: var(--bitcoin-orange); font-weight: 600; }
+
+        .rules-section h3 {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 1.3rem;
+            color: var(--light-text);
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+        .rule-list { list-style: none; padding: 0; }
+        .rule-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            font-size: 14px;
+            color: var(--gray-text);
+            line-height: 1.6;
+        }
+        .rule-list li:last-child { border-bottom: none; }
+        .rule-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+        .rule-list li strong { color: var(--light-text); font-weight: 600; }
+
+        .safe-banner {
+            background: var(--green-bg);
+            border: 1px solid var(--green-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin: 1.5rem 0;
+            font-size: 14px;
+            color: #86efac;
+            line-height: 1.6;
+        }
+        .safe-banner strong { color: var(--green); }
+
+        .action-btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            font-family: 'Work Sans', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            text-decoration: none;
+            margin-top: 0.75rem;
+        }
+        .btn-primary-site {
+            background: var(--bitcoin-orange);
+            color: #fff;
+            border: none;
+        }
+        .btn-primary-site:hover {
+            background: #e0841a;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(247,147,26,0.3);
+        }
+        .btn-outline-site {
+            background: transparent;
+            color: var(--light-text);
+            border: 2px solid rgba(247,147,26,0.3);
+        }
+        .btn-outline-site:hover {
+            border-color: var(--bitcoin-orange);
+            color: var(--bitcoin-orange);
+            transform: translateY(-2px);
+        }
+
+        /* ── Context label above sim ── */
+        .sim-label {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .sim-label span {
+            display: inline-block;
+            background: rgba(247,147,26,0.1);
+            border: 1px solid rgba(247,147,26,0.3);
+            color: var(--bitcoin-orange);
+            border-radius: 20px;
+            padding: 0.35rem 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* ── Progress dots ── */
+        .progress-dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 1.25rem; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.15); }
+        .dot.done { background: var(--green); }
+        .dot.active { background: var(--bitcoin-orange); }
+
+        /* ── Footer (matches index) ── */
+        footer {
+            background: var(--dark-bg);
+            border-top: 1px solid rgba(247,147,26,0.2);
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        .footer-content { max-width: 1400px; margin: 0 auto; }
+        .footer-quote { font-size: 1.1rem; color: var(--bitcoin-orange); font-style: italic; margin-bottom: 1.5rem; }
+        .footer-back { color: var(--gray-text); font-size: 0.9rem; }
+        .footer-back a { color: var(--bitcoin-orange); text-decoration: none; }
+        .footer-back a:hover { text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .seed-grid { grid-template-columns: repeat(2, 1fr); }
+            .word-choice { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Nav -->
+    <nav>
+        <div class="nav-content">
+            <a href="index.html" class="logo">₿ WE LIKE THE COIN</a>
+            <ul class="nav-links">
+                <li><a href="index.html#books">Books</a></li>
+                <li><a href="index.html#articles">Articles</a></li>
+                <li><a href="index.html#podcasts">Podcasts</a></li>
+                <li><a href="index.html#videos">Videos</a></li>
+                <li><a href="index.html#tools">Tools</a></li>
+                <li><a href="index.html#education">Education</a></li>
+                <li><a href="bitcoin-security.html" class="active">🛡️ Security</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="page-hero">
+        <div class="page-hero-content">
+            <div class="warning-pill">⚠ Interactive Security Simulation</div>
+            <h1>Would You Have Been Phished?</h1>
+            <p>A real phishing attack stole $40,000 from a Bitcoin holder. Walk through a simulated attack — and find out exactly how it works before it happens to you.</p>
+        </div>
+    </section>
+
+    <!-- Sim -->
+    <div class="sim-wrap">
+
+        <!-- Screen 1: Landing / fake Trezor email -->
+        <div class="screen active" id="s1">
+            <div class="sim-label"><span>Simulation begins — this is a fake page</span></div>
+            <div class="phish-card">
+                <div class="phish-header">
+                    <div class="phish-logo-mark">T</div>
+                    <span class="phish-brand">Trezor</span>
+                    <span class="phish-domain">trezor-security.io</span>
+                </div>
+                <div class="phish-body">
+                    <div class="phish-alert">
+                        ⚠ Your wallet firmware is critically outdated. Immediate action required.
+                    </div>
+                    <div style="text-align:center; margin-bottom: 1.5rem;">
+                        <div style="font-size: 3rem; margin-bottom: 0.5rem;">🔒</div>
+                        <div class="phish-title">Have I Been Pwned?</div>
+                        <div class="phish-sub">Your Trezor wallet may have been exposed in a recent data breach. Enter your recovery phrase to verify your wallet is secure and restore access.</div>
+                    </div>
+                    <button class="phish-btn" onclick="go('s2')">Check My Wallet Now →</button>
+                    <div class="phish-footer">Secured by Trezor • Your phrase never leaves your device</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 2: Choose word count -->
+        <div class="screen" id="s2">
+            <div class="sim-label"><span>Simulation continues</span></div>
+            <div class="phish-card">
+                <div class="phish-header">
+                    <div class="phish-logo-mark">T</div>
+                    <span class="phish-brand">Trezor</span>
+                    <span class="phish-domain">trezor-security.io</span>
+                </div>
+                <div class="phish-body">
+                    <div class="progress-dots">
+                        <div class="dot done"></div>
+                        <div class="dot active"></div>
+                        <div class="dot"></div>
+                    </div>
+                    <div class="phish-title" style="font-size:18px;">Select your recovery phrase length</div>
+                    <div class="phish-sub">Choose the number of words in your Trezor recovery phrase to begin verification.</div>
+                    <div class="word-choice">
+                        <button class="word-btn" onclick="buildSeed(12)">12 words</button>
+                        <button class="word-btn" onclick="buildSeed(24)">24 words</button>
+                    </div>
+                    <button class="back-link" onclick="go('s1')">← Back</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 3: Seed entry (intercepted on submit) -->
+        <div class="screen" id="s3">
+            <div class="sim-label"><span>Simulation continues</span></div>
+            <div class="phish-card">
+                <div class="phish-header">
+                    <div class="phish-logo-mark">T</div>
+                    <span class="phish-brand">Trezor</span>
+                    <span class="phish-domain">trezor-security.io</span>
+                </div>
+                <div class="phish-body">
+                    <div class="progress-dots">
+                        <div class="dot done"></div>
+                        <div class="dot done"></div>
+                        <div class="dot active"></div>
+                    </div>
+                    <div class="phish-title" style="font-size:18px;">Enter your recovery phrase</div>
+                    <div class="phish-sub">Type each word in the correct order to verify your wallet identity and restore access.</div>
+                    <div class="seed-grid" id="seedGrid"></div>
+                    <button class="phish-btn" style="margin-top:1rem;" onclick="intercept()">Verify Wallet →</button>
+                    <button class="back-link" onclick="go('s2')">← Back</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 4: STOP — Education -->
+        <div class="screen" id="s4">
+
+            <div class="stop-banner">
+                <h2>🛑 Stop. This is a phishing attack.</h2>
+                <p>You were one click away from permanently losing your Bitcoin. If you had submitted that form, your funds would have been drained within seconds — with zero recourse. This is exactly how a friend lost $40,000.</p>
+            </div>
+
+            <div class="reveal-box">
+                <strong>What just happened:</strong> This page impersonated Trezor's official branding, used an urgent security warning to create panic, and asked for your seed phrase under the guise of "verifying" your wallet. The domain was <code style="color:var(--bitcoin-orange);font-size:12px;">trezor-security.io</code> — not <code style="color:#86efac;font-size:12px;">trezor.io</code>. That one difference costs people everything.
+            </div>
+
+            <div class="rules-section">
+                <h3>The Rules That Protect Everything</h3>
+                <ul class="rule-list">
+                    <li>
+                        <span class="rule-icon">🔑</span>
+                        <span>Your <strong>seed phrase is the master key</strong> to your entire wallet. Anyone who has those words owns your Bitcoin — permanently and irrevocably.</span>
+                    </li>
+                    <li>
+                        <span class="rule-icon">🚫</span>
+                        <span><strong>No legitimate company will ever ask for your seed phrase.</strong> Not Trezor. Not Ledger. Not Coinbase. Not support staff. Not in an email. Not on a website. Not ever.</span>
+                    </li>
+                    <li>
+                        <span class="rule-icon">🌐</span>
+                        <span><strong>Always verify the domain.</strong> Attackers register lookalike URLs: <code style="font-size:12px;color:#f87171;">trezor-security.io</code>, <code style="font-size:12px;color:#f87171;">trezor.io.co</code>, <code style="font-size:12px;color:#f87171;">trézor.io</code>. Bookmark the real site and only ever use your bookmark.</span>
+                    </li>
+                    <li>
+                        <span class="rule-icon">💻</span>
+                        <span>Your seed phrase should <strong>only ever be entered on your physical hardware device</strong> — never on a website, app, or browser extension of any kind.</span>
+                    </li>
+                    <li>
+                        <span class="rule-icon">🚨</span>
+                        <span><strong>Urgency is the weapon.</strong> Phrases like "immediate action required" and "your wallet may be compromised" are designed to bypass your critical thinking. Slow down. Real security never requires instant panic.</span>
+                    </li>
+                    <li>
+                        <span class="rule-icon">⚡</span>
+                        <span>If you've already entered your seed phrase on any website, <strong>move your funds to a fresh wallet immediately.</strong> Every second counts. Generate a brand new seed on your hardware device and sweep everything there now.</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="safe-banner">
+                <strong>You're safe.</strong> You entered nothing. No data was collected or stored. This simulation exists solely to make this lesson impossible to forget. Share it with everyone who holds Bitcoin.
+            </div>
+
+            <button class="action-btn btn-primary-site" onclick="restart()">← Run the simulation again</button>
+            <a href="index.html" class="action-btn btn-outline-site">← Back to We Like The Coin</a>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <p class="footer-quote">"The Times 03/Jan/2009 Chancellor on brink of second bailout for banks."</p>
+            <p class="footer-back">
+                Part of <a href="index.html">welikethecoin.com</a> — A Bitcoin resource hub.<br>
+                <span style="font-size:0.8rem;">This simulation collects nothing. It exists only to educate.</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        function go(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function buildSeed(count) {
+            const grid = document.getElementById('seedGrid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= count; i++) {
+                const wrap = document.createElement('div');
+                wrap.className = 'seed-input-wrap';
+                wrap.innerHTML = `<span class="seed-num">${i}</span><input class="seed-input" type="text" placeholder="word ${i}" autocomplete="off" autocorrect="off" spellcheck="false" />`;
+                grid.appendChild(wrap);
+            }
+            go('s3');
+        }
+
+        function intercept() {
+            go('s4');
+        }
+
+        function restart() {
+            go('s1');
+        }
+    </script>
+
+</body>
+</html>
